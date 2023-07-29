@@ -1,0 +1,875 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/baizi.jpg">
+  <link rel="icon" href="/img/baizi.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="流风花水">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="Lab 2: RV64 时钟中断处理1 实验目的 学习 RISC-V 的 trap 处理相关寄存器与指令，完成对 trap 处理的初始化。 理解 CPU 上下文切换机制，并正确实现上下文切换功能。 编写 trap 处理函数，完成对特定 trap 的处理。 调用 OpenSBI 提供的接口，完成对时钟中断事件的设置。  2 实验环境 Environment in previous labs  3 背">
+<meta property="og:type" content="article">
+<meta property="og:title" content="oslab2">
+<meta property="og:url" content="http://example.com/2023/07/08/oslab2/index.html">
+<meta property="og:site_name" content="流风小屋">
+<meta property="og:description" content="Lab 2: RV64 时钟中断处理1 实验目的 学习 RISC-V 的 trap 处理相关寄存器与指令，完成对 trap 处理的初始化。 理解 CPU 上下文切换机制，并正确实现上下文切换功能。 编写 trap 处理函数，完成对特定 trap 的处理。 调用 OpenSBI 提供的接口，完成对时钟中断事件的设置。  2 实验环境 Environment in previous labs  3 背">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-07-08T06:43:03.000Z">
+<meta property="article:modified_time" content="2023-07-29T05:52:30.885Z">
+<meta property="article:author" content="流风花水">
+<meta property="article:tag" content="os实验文档">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>oslab2 - 流风小屋</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.5","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="流风小屋" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 100vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>流风小屋</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/os.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.1)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="oslab2"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-author" aria-hidden="true"></i>
+        流风花水
+      </span>
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-07-08 14:43" pubdate>
+          2023年7月8日 14:43
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          8k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          67 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+        <div class="scroll-down-bar">
+          <i class="iconfont icon-arrowdown"></i>
+        </div>
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">oslab2</h1>
+            
+              <p class="note note-info">
+                
+                  
+                    本文最后更新于：2023年7月29日 13:52
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Lab-2-RV64-时钟中断处理"><a href="#Lab-2-RV64-时钟中断处理" class="headerlink" title="Lab 2: RV64 时钟中断处理"></a>Lab 2: RV64 时钟中断处理</h1><h2 id="1-实验目的"><a href="#1-实验目的" class="headerlink" title="1 实验目的"></a>1 实验目的</h2><ul>
+<li>学习 RISC-V 的 trap 处理相关寄存器与指令，完成对 trap 处理的初始化。</li>
+<li>理解 CPU 上下文切换机制，并正确实现上下文切换功能。</li>
+<li>编写 trap 处理函数，完成对特定 trap 的处理。</li>
+<li>调用 OpenSBI 提供的接口，完成对时钟中断事件的设置。</li>
+</ul>
+<h2 id="2-实验环境"><a href="#2-实验环境" class="headerlink" title="2 实验环境"></a>2 实验环境</h2><ul>
+<li>Environment in previous labs</li>
+</ul>
+<h2 id="3-背景知识"><a href="#3-背景知识" class="headerlink" title="3 背景知识"></a>3 背景知识</h2><h3 id="3-0-前言"><a href="#3-0-前言" class="headerlink" title="3.0 前言"></a>3.0 前言</h3><p>在 <a href="./lab1.md">lab1</a> 中我们成功的将一个最简单的 OS 启动起来， 但还没有办法与之交互。我们在课程中讲过操作系统启动之后由<strong>事件</strong>（<code>event</code>）驱动，在本次实验中我们将引入一种重要的事件 <strong>trap</strong>，trap 给了 OS 与硬件、软件交互的能力。在 <code>lab1</code> 中我们介绍了在 RISC-V 中有三种特权级 ( M 态、 S 态、 U 态 )， 在 Boot 阶段， OpenSBI 已经帮我们将 M 态的 trap 处理进行了初始化，这一部分不需要我们再去实现，因此本次试验我们重点关注 S 态的 trap 处理。</p>
+<h3 id="3-1-RISC-V-中的-Interrupt-和-Exception"><a href="#3-1-RISC-V-中的-Interrupt-和-Exception" class="headerlink" title="3.1 RISC-V 中的 Interrupt 和 Exception"></a>3.1 RISC-V 中的 Interrupt 和 Exception</h3><h4 id="3-1-1-什么是-Interrupt-和-Exception"><a href="#3-1-1-什么是-Interrupt-和-Exception" class="headerlink" title="3.1.1 什么是 Interrupt 和 Exception"></a>3.1.1 什么是 Interrupt 和 Exception</h4><blockquote>
+<p>We use the term <strong>exception</strong> to refer to an unusual condition occurring at run time <strong>associated with an instruction</strong> in the current RISC-V hart. We use the term <strong>interrupt</strong> to refer to an <strong>external asynchronous event</strong> that may cause a RISC-V hart to experience an unexpected transfer of control. We use the term <strong>trap</strong> to refer to <strong>the transfer of control to a trap handler</strong> caused by either an exception or an interrupt.</p>
+</blockquote>
+<p>上述是 <a target="_blank" rel="noopener" href="https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf">RISC-V Unprivileged Spec</a> 1.6 节中对于 <code>Trap</code>、 <code>Interrupt</code> 与 <code>Exception</code> 的描述。总结起来 <code>Interrupt</code> 与 <code>Exception</code> 的主要区别如下表：</p>
+<table>
+<thead>
+<tr>
+<th align="left">Interrupt</th>
+<th align="left">Exception</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Hardware generate</td>
+<td align="left">Software generate</td>
+</tr>
+<tr>
+<td align="left">These are <strong>asynchronous external requests</strong> for service (like keyboard or printer needs service).</td>
+<td align="left">These are <strong>synchronous internal requests</strong> for service based upon abnormal events (think of illegal instructions, illegal address, overflow etc).</td>
+</tr>
+<tr>
+<td align="left">These are <strong>normal events</strong> and shouldn’t interfere with the normal running of a computer.</td>
+<td align="left">These are <strong>abnormal events</strong> and often result in the termination of a program</td>
+</tr>
+</tbody></table>
+<p>上文中的 <code>Trap</code> 描述的是一种控制转移的过程, 这个过程是由 <code>Interrupt</code> 或者 <code>Exception</code> 引起的。这里为了方便起见，我们在这里约定 <code>Trap</code> 为 <code>Interrput</code> 与 <code>Exception</code> 的总称。</p>
+<h4 id="3-1-2-相关寄存器"><a href="#3-1-2-相关寄存器" class="headerlink" title="3.1.2 相关寄存器"></a>3.1.2 相关寄存器</h4><p>除了32个通用寄存器之外，RISC-V 架构还有大量的 <strong>控制状态寄存器</strong> <code>Control and Status Registers(CSRs)</code>，下面将介绍几个和 trap 机制相关的重要寄存器。</p>
+<p>Supervisor Mode 下 trap 相关寄寄存器:</p>
+<ul>
+<li><code>sstatus</code> ( Supervisor Status Register )中存在一个 SIE ( Supervisor Interrupt Enable ) 比特位，当该比特位设置为 1 时，会<strong>响应</strong>所有的 S 态 trap， 否则将会禁用所有 S 态 trap。</li>
+<li><code>sie</code> ( Supervisor Interrupt Eable Register )。在 RISC-V 中，<code>Interrupt</code> 被划分为三类 <code>Software Interrupt</code>， <code>Timer Interrupt</code>， <code>External Interrupt</code>。在开启了 <code>sstatus[SIE]</code>之后，系统会根据 <code>sie</code> 中的相关比特位来决定是否对该 <code>Interrupt</code> 进行<strong>处理</strong>。</li>
+<li><code>stvec</code> ( Supervisor Trap Vector Base Address Register ) 即所谓的“中断向量表基址”。 <code>stvec</code> 有两种模式：<code>Direct 模式</code>，适用于系统中只有一个中断处理程序, 其指向中断处理入口函数 （ 本次实验中我们所用的模式 ）。<code>Vectored 模式</code>，指向中断向量表， 适用于系统中有多个中断处理程序 （ 该模式可以参考<a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/latest/source/arch/riscv/kernel/entry.S#L564"> RISC-V 内核源码</a> ）。</li>
+<li><code>scause</code> ( Supervisor Cause Register ), 会记录 trap 发生的原因，还会记录该 trap 是 <code>Interrupt</code> 还是 <code>Exception</code>。</li>
+<li><code>sepc</code> ( Supervisor Exception Program Counter ), 会记录触发 exception 的那条指令的地址。</li>
+</ul>
+<p>Machine Mode 异常相关寄寄存器:</p>
+<ul>
+<li>类似于 Supervisor Mode， Machine Mode 也有相对应的寄存器，但由于本实验同学不需要操作这些寄存器，故不在此作介绍。</li>
+</ul>
+<p>以上寄存器的详细介绍请同学们参考 <a target="_blank" rel="noopener" href="https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMFDQC-and-Priv-v1.11/riscv-privileged-20190608.pdf">RISC-V Privileged Spec</a></p>
+<h4 id="3-1-3-相关特权指令"><a href="#3-1-3-相关特权指令" class="headerlink" title="3.1.3 相关特权指令"></a>3.1.3 相关特权指令</h4><ul>
+<li><code>ecall</code> ( Environment Call )，当我们在 S 态执行这条指令时，会触发一个 <code>ecall-from-s-mode-exception</code>，从而进入 M Mode 下的处理流程( 如设置定时器等 )；当我们在 U 态执行这条指令时，会触发一个 <code>ecall-from-u-mode-exception</code>，从而进入 S Mode 下的处理流程 ( 常用来进行系统调用 )。</li>
+<li><code>sret</code> 用于 S 态 trap 返回, 通过 <code>sepc</code> 来设置 <code>pc</code> 的值， 返回到之前程序继续运行。</li>
+</ul>
+<p>以上指令的详细介绍请同学们参考 <a target="_blank" rel="noopener" href="https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMFDQC-and-Priv-v1.11/riscv-privileged-20190608.pdf">RISC-V Privileged Spec</a></p>
+<h3 id="3-2-上下文处理"><a href="#3-2-上下文处理" class="headerlink" title="3.2 上下文处理"></a>3.2 上下文处理</h3><p>由于在处理 trap 时，有可能会改变系统的状态。所以在真正处理 trap 之前，我们有必要对系统的当前状态进行保存，在处理完成之后，我们再将系统恢复至原先的状态，就可以确保之前的程序继续正常运行。<br>这里的系统状态通常是指寄存器，这些寄存器也叫做CPU的上下文 ( <code>Context</code> ).</p>
+<h3 id="3-3-trap-处理程序"><a href="#3-3-trap-处理程序" class="headerlink" title="3.3 trap 处理程序"></a>3.3 trap 处理程序</h3><p>trap 处理程序根据 <code>scause</code> 的值， 进入不同的处理逻辑，在本次试验中我们需要关心的只有 <code>Superviosr Timer Interrupt</code> 。</p>
+<h3 id="3-4-时钟中断"><a href="#3-4-时钟中断" class="headerlink" title="3.4 时钟中断"></a>3.4 时钟中断</h3><p>时钟中断需要 CPU 硬件的支持。CPU 以“时钟周期”为工作的基本时间单位，对逻辑门的时序电路进行同步。而时钟中断实际上就是“每隔若干个时钟周期执行一次的程序”。下面介绍与时钟中断相关的寄存器以及如何产生时钟中断。</p>
+<ul>
+<li><code>mtime</code> 与 <code>mtimecmp</code> ( Machine Timer Register )。 <code>mtime</code> 是一个实时计时器， 由硬件以恒定的频率自增。<code>mtimecmp</code> 中保存着下一次时钟中断发生的时间点，当 <code>mtime</code> 的值大于或等于 <code>mtimecmp</code> 的值，系统就会触发一次时钟中断。因此我们只需要更新 <code>mtimecmp</code> 中的值，就可以设置下一次时钟中断的触发点。 <code>OpenSBI</code> 已经为我们提供了更新 <code>mtimecmp</code> 的接口 <code>sbi_set_timer</code> ( 见 <code>lab1</code> 4.4节 )。</li>
+<li><code>mcounteren</code> ( Counter-Enable Registers )。由于 <code>mtime</code> 是属于 M 态的寄存器，我们在 S 态无法直接对其读写， 幸运的是 OpenSBI 在 M 态已经通过设置 <code>mcounteren</code> 寄存器的 <code>TM</code> 比特位， 让我们可以在 S 态中可以通过 <code>time</code> 这个<strong>只读</strong>寄存器读取到 <code>mtime</code>的当前值，相关汇编指令是 <code>rdtime</code>。</li>
+</ul>
+<p>以上寄存器的详细介绍请同学们参考 <a target="_blank" rel="noopener" href="https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMFDQC-and-Priv-v1.11/riscv-privileged-20190608.pdf">RISC-V Privileged Spec</a></p>
+<h2 id="4-实验步骤"><a href="#4-实验步骤" class="headerlink" title="4 实验步骤"></a>4 实验步骤</h2><h3 id="4-1-准备工程"><a href="#4-1-准备工程" class="headerlink" title="4.1 准备工程"></a>4.1 准备工程</h3><ul>
+<li><p>此次实验基于 lab1 同学所实现的代码进行。</p>
+</li>
+<li><p>在 <code>lab1</code> 中我们实现的 <code>puti</code> <code>puts</code> 使用起来较为繁琐，因此在这里我们提供了简化版的 <code>printk</code>。 从 <code>repo</code> 同步以下代码: <code>stddef.h</code> <code>printk.h</code> <code>printk.c</code>，并按如下目录结构放置。**还需要将之前所有 <code>print.h puti puts</code> 的引用修改为 <code>printk.h printk</code>**。</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs stylus">.<br>├── Makefile<br>├── arch<br>├── include<br>│   ├── printk<span class="hljs-selector-class">.h</span><br>│   ├── stddef<span class="hljs-selector-class">.h</span><br>│   └── types<span class="hljs-selector-class">.h</span><br>├── init<br>└── lib<br>    ├── Makefile<br>    └── printk.c<br></code></pre></td></tr></table></figure>
+</li>
+<li><p>修改 <code>vmlinux.lds</code> 以及 <code>head.S</code></p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs armasm">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; 原先的 vmlinux.lds<br><span class="hljs-symbol">...</span><br><br><span class="hljs-symbol">.text</span> : <span class="hljs-meta">ALIGN</span>(<span class="hljs-number">0x1000</span>)&#123;<br>    _stext = .<span class="hljs-comment">;</span><br><br>    *(<span class="hljs-meta">.text</span>.entry)<br>    *(<span class="hljs-meta">.text</span> <span class="hljs-meta">.text</span>.*)<br>    <br>    _etext = .<span class="hljs-comment">;</span><br>&#125;<br><br><span class="hljs-symbol">...</span><br><br>&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 修改之后的 vmlinux.lds<br><span class="hljs-symbol">...</span><br><br><span class="hljs-symbol">.text</span> : <span class="hljs-meta">ALIGN</span>(<span class="hljs-number">0x1000</span>)&#123;<br>    _stext = .<span class="hljs-comment">;</span><br><br>    *(<span class="hljs-meta">.text</span>.init)      &lt;- 加入了 <span class="hljs-meta">.text</span>.init<br>    *(<span class="hljs-meta">.text</span>.entry)     &lt;- 之后我们实现 中断处理逻辑 会放置在 <span class="hljs-meta">.text</span>.entry<br>    *(<span class="hljs-meta">.text</span> <span class="hljs-meta">.text</span>.*)<br>    <br>    _etext = .<span class="hljs-comment">;</span><br>&#125;<br><br><span class="hljs-symbol">...</span><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs stylus">&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; 原先的 head<span class="hljs-selector-class">.S</span><br>extern start_kernel<br><br>    <span class="hljs-selector-class">.section</span> <span class="hljs-selector-class">.text</span><span class="hljs-selector-class">.entry</span>        &lt;- 之前的 _start 放置在 <span class="hljs-selector-class">.text</span><span class="hljs-selector-class">.entry</span> <span class="hljs-selector-tag">section</span>       <br>    <span class="hljs-selector-class">.globl</span> _start<br>_start:<br>    ...<br><br>    <span class="hljs-selector-class">.section</span> <span class="hljs-selector-class">.bss</span><span class="hljs-selector-class">.stack</span><br>    <span class="hljs-selector-class">.globl</span> boot_stack<br>boot_stack:<br>    <span class="hljs-selector-class">.space</span> <span class="hljs-number">4096</span><br><br>    <span class="hljs-selector-class">.globl</span> boot_stack_top<br>boot_stack_top:<br><br>&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 修改之后的 head<span class="hljs-selector-class">.S</span><br>extern start_kernel<br><br>    <span class="hljs-selector-class">.section</span> <span class="hljs-selector-class">.text</span><span class="hljs-selector-class">.init</span>         &lt;- 将 _start 放入<span class="hljs-selector-class">.text</span><span class="hljs-selector-class">.init</span> <span class="hljs-selector-tag">section</span> <br>    <span class="hljs-selector-class">.globl</span> _start<br>_start:<br>    ...<br><br>    <span class="hljs-selector-class">.section</span> <span class="hljs-selector-class">.bss</span><span class="hljs-selector-class">.stack</span><br>    <span class="hljs-selector-class">.globl</span> boot_stack<br>boot_stack:<br>    <span class="hljs-selector-class">.space</span> <span class="hljs-number">4096</span><br><br>    <span class="hljs-selector-class">.globl</span> boot_stack_top<br>boot_stack_top:<br></code></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="4-2-开启-trap-处理"><a href="#4-2-开启-trap-处理" class="headerlink" title="4.2 开启 trap 处理"></a>4.2 开启 trap 处理</h3><p>在运行 <code>start_kernel</code> 之前，我们要对上面提到的 CSR 进行初始化，初始化包括以下几个步骤：</p>
+<ol>
+<li>设置 <code>stvec</code>， 将 <code>_traps</code> ( <code>_trap</code> 在 4.3 中实现 ) 所表示的地址写入 <code>stvec</code>，这里我们采用 <code>Direct 模式</code>, 而 <code>_traps</code> 则是 trap 处理入口函数的基地址。</li>
+<li>开启时钟中断，将 <code>sie[STIE]</code> 置 1。</li>
+<li>设置第一次时钟中断，参考 <code>clock_set_next_event()</code> ( <code>clock_set_next_event()</code> 在 4.5 中介绍 ) 中的逻辑用汇编实现。</li>
+<li>开启 S 态下的中断响应， 将 <code>sstatus[SIE]</code> 置 1。</li>
+</ol>
+<p>按照下方模版修改 <code>arch/riscv/kernel/head.S</code>， 并补全 <code>_start</code> 中的逻辑。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><code class="hljs asm">.extern start_kernel<br><br>    .section .text.init<br>    .globl _start<br>_start:<br>    # YOUR CODE HERE<br><br>    # ------------------<br>        <br>        # set stvec = _traps<br>    <br>    # ------------------<br>    <br>        # set sie[STIE] = 1<br>    <br>    # ------------------<br>    <br>        # set first time interrupt<br>    <br>    # ------------------<br>    <br>        # set sstatus[SIE] = 1<br><br>    # ------------------<br>    <br>    # ------------------<br>    # - your lab1 code -<br>    # ------------------<br><br>    ...<br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>Debug 提示：可以先不实现 stvec 和 first time interrupt，先关注 sie 和 sstatus 是否设置正确。</p>
+</blockquote>
+<h3 id="4-3-实现上下文切换"><a href="#4-3-实现上下文切换" class="headerlink" title="4.3 实现上下文切换"></a>4.3 实现上下文切换</h3><p>我们要使用汇编实现上下文切换机制， 包含以下几个步骤：</p>
+<ol>
+<li>在 <code>arch/riscv/kernel/</code> 目录下添加 <code>entry.S</code> 文件。</li>
+<li>保存 CPU 的寄存器（上下文）到内存中（栈上）。</li>
+<li>将 <code>scause</code> 和 <code>sepc</code> 中的值传入 trap 处理函数 <code>trap_handler</code> ( <code>trap_handler</code> 在 4.4 中介绍 ) ，我们将会在 <code>trap_handler</code> 中实现对 trap 的处理。</li>
+<li>在完成对 trap 的处理之后， 我们从内存中（栈上）恢复CPU的寄存器（上下文）。</li>
+<li>从 trap 中返回。</li>
+</ol>
+<p>按照下方模版修改 <code>arch/riscv/kernel/entry.S</code>， 并补全 <code>_traps</code> 中的逻辑。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs asm">    .section .text.entry<br>    .align 2<br>    .globl _traps <br>_traps:<br>    # YOUR CODE HERE<br>    # -----------<br><br>        # 1. save 32 registers and sepc to stack<br><br>    # -----------<br><br>        # 2. call trap_handler<br><br>    # -----------<br><br>        # 3. restore sepc and 32 registers (x2(sp) should be restore last) from stack<br><br>    # -----------<br><br>        # 4. return from trap<br><br>    # -----------<br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>Debug 提示： 可以先不实现 call trap_handler， 先实现上下文切换逻辑。通过 gdb 跟踪各个寄存器，确保上下文的 save 与 restore 正确实现并正确返回。</p>
+</blockquote>
+<h3 id="4-4-实现-trap-处理函数"><a href="#4-4-实现-trap-处理函数" class="headerlink" title="4.4 实现 trap 处理函数"></a>4.4 实现 trap 处理函数</h3><ol>
+<li>在 <code>arch/riscv/kernel/</code> 目录下添加 <code>trap.c</code> 文件。</li>
+<li>在 <code>trap.c</code> 中实现 trap 处理函数 <code>trap_handler()</code>, 其接收的两个参数分别是 <code>scause</code> 和 <code>sepc</code> 两个寄存器中的值。</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// trap.c </span><br><br><span class="hljs-type">void</span> <span class="hljs-title function_">trap_handler</span><span class="hljs-params">(<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> scause, <span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> sepc)</span> &#123;<br>    <span class="hljs-comment">// 通过 `scause` 判断trap类型</span><br>    <span class="hljs-comment">// 如果是interrupt 判断是否是timer interrupt</span><br>    <span class="hljs-comment">// 如果是timer interrupt 则打印输出相关信息, 并通过 `clock_set_next_event()` 设置下一次时钟中断</span><br>    <span class="hljs-comment">// `clock_set_next_event()` 见 4.5 节</span><br>    <span class="hljs-comment">// 其他interrupt / exception 可以直接忽略</span><br>    <br>    <span class="hljs-comment">// YOUR CODE HERE</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="4-5-实现时钟中断相关函数"><a href="#4-5-实现时钟中断相关函数" class="headerlink" title="4.5 实现时钟中断相关函数"></a>4.5 实现时钟中断相关函数</h3><ol>
+<li>在 <code>arch/riscv/kernel/</code> 目录下添加 <code>clock.c</code> 文件。</li>
+<li>在 <code>clock.c</code> 中实现 get_cycles ( ) : 使用 <code>rdtime</code> 汇编指令获得当前 <code>time</code> 寄存器中的值。</li>
+<li>在 <code>clock.c</code> 中实现 clock_set_next_event ( ) : 调用 <code>sbi_ecall</code>，设置下一个时钟中断事件。</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// clock.c</span><br><br><span class="hljs-comment">// QEMU中时钟的频率是10MHz, 也就是1秒钟相当于10000000个时钟周期。</span><br><span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> TIMECLOCK = <span class="hljs-number">10000000</span>;<br><br><span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> <span class="hljs-title function_">get_cycles</span><span class="hljs-params">()</span> &#123;<br>    <span class="hljs-comment">// 编写内联汇编，使用 rdtime 获取 time 寄存器中 (也就是mtime 寄存器 )的值并返回</span><br>    <span class="hljs-comment">// YOUR CODE HERE</span><br><br>&#125;<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">clock_set_next_event</span><span class="hljs-params">()</span> &#123;<br>    <span class="hljs-comment">// 下一次 时钟中断 的时间点</span><br>    <span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> next = get_cycles() + TIMECLOCK;<br><br>    <span class="hljs-comment">// 使用 sbi_ecall 来完成对下一次时钟中断的设置</span><br>    <span class="hljs-comment">// YOUR CODE HERE</span><br>&#125; <br><br></code></pre></td></tr></table></figure>
+
+<h3 id="4-6-编译及测试"><a href="#4-6-编译及测试" class="headerlink" title="4.6 编译及测试"></a>4.6 编译及测试</h3><p>由于加入了一些新的 .c 文件，可能需要修改一些Makefile文件，请同学自己尝试修改，使项目可以编译并运行。</p>
+<p>下面是一个正确实现的输出样例。（ 仅供参考 ）</p>
+<figure class="highlight mathematica"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs mathematica"><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br><span class="hljs-variable">kernel</span> <span class="hljs-variable">is</span> <span class="hljs-variable">running</span><span class="hljs-operator">!</span><br><span class="hljs-punctuation">[</span><span class="hljs-variable">S</span><span class="hljs-punctuation">]</span> <span class="hljs-variable">Supervisor</span> <span class="hljs-built_in">Mode</span> <span class="hljs-variable">Timer</span> <span class="hljs-built_in">Interrupt</span><br></code></pre></td></tr></table></figure>
+
+<h2 id="思考题"><a href="#思考题" class="headerlink" title="思考题"></a>思考题</h2><ol>
+<li>在我们使用make run时， OpenSBI 会产生如下输出:</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs plaintext"> OpenSBI v0.9<br>  ____                    _____ ____ _____<br> / __ \                  / ____|  _ \_   _|<br>| |  | |_ __   ___ _ __ | (___ | |_) || |<br>| |  | | &#x27;_ \ / _ \ &#x27;_ \ \___ \|  _ &lt; | |<br>| |__| | |_) |  __/ | | |____) | |_) || |_<br> \____/| .__/ \___|_| |_|_____/|____/_____|<br>       | |<br>       |_|<br><br> ......<br><br> Boot HART MIDELEG         : 0x0000000000000222<br> Boot HART MEDELEG         : 0x000000000000b109<br><br> ......<br></code></pre></td></tr></table></figure>
+
+<pre><code class="hljs">通过查看 `RISC-V Privileged Spec` 中的 `medeleg` 和 `mideleg` 解释上面 `MIDELEG` 值的含义。
+</code></pre>
+<h2 id="作业提交"><a href="#作业提交" class="headerlink" title="作业提交"></a>作业提交</h2><p>同学需要提交实验报告以及整个工程代码。在提交前请使用 <code>make clean</code> 清除所有构建产物。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" class="category-chain-item">操作系统</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/os%E5%AE%9E%E9%AA%8C%E6%96%87%E6%A1%A3/" class="print-no-link">#os实验文档</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>oslab2</div>
+      <div>http://example.com/2023/07/08/oslab2/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>流风花水</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2023年7月8日</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>更新于</div>
+          <div>2023年7月29日</div>
+        </div>
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2023/07/08/oslab3/" title="oslab3">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">oslab3</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/07/08/oslab1/" title="oslab1">
+                        <span class="hidden-mobile">oslab1</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        if (!window.MathJax) {
+          window.MathJax = {
+            tex    : {
+              inlineMath: { '[+]': [['$', '$']] }
+            },
+            loader : {
+              load: ['ui/lazy']
+            },
+            options: {
+              renderActions: {
+                insertedScript: [200, () => {
+                  document.querySelectorAll('mjx-container').forEach(node => {
+                    let target = node.parentNode;
+                    if (target.nodeName.toLowerCase() === 'li') {
+                      target.parentNode.classList.add('has-jax');
+                    }
+                  });
+                }, '', false]
+              }
+            }
+          };
+        } else {
+          MathJax.startup.document.state(0);
+          MathJax.texReset();
+          MathJax.typeset();
+          MathJax.typesetPromise();
+        }
+
+        Fluid.events.registerRefreshCallback(function() {
+          if ('MathJax' in window && MathJax.startup.document && typeof MathJax.startup.document.state === 'function') {
+            MathJax.startup.document.state(0);
+            MathJax.texReset();
+            MathJax.typeset();
+            MathJax.typesetPromise();
+          }
+        });
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.2/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [ ["$","$"], ["\\(","\\)"] ],
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            processEscapes: true
+        }
+    });
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax();
+        for (var i = 0; i < all.length; ++i)
+            all[i].SourceElement().parentNode.className += ' has-jax';
+    });
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"model":{"jsonPath":"/live2dw/assets/koharu.model.json"},"display":{"position":"right","width":200,"height":400},"mobile":{"show":false},"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body>
+</html>
+
+<script type="text/javascript" src="/js/diy/clicklove.js"></script>
+<link rel="stylesheet" href="/dist/APlayer.min.css">
+<div id="aplayer"></div>
+<script type="text/javascript" src="/dist/APlayer.min.js"></script>
+<script type="text/javascript" src="/js/diy/musicplayer.js"></script>

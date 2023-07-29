@@ -1,0 +1,868 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/baizi.jpg">
+  <link rel="icon" href="/img/baizi.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="流风花水">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="Lab 4: RV64 虚拟内存管理1 实验目的 学习虚拟内存的相关知识，实现物理地址到虚拟地址的切换。 了解 RISC-V 架构中 SV39 分页模式，实现虚拟地址到物理地址的映射，并对不同的段进行相应的权限设置。  2 实验环境 Environment in previous labs  3 背景知识3.0 前言在 lab3 中我们赋予了 OS 对多个线程调度以及并发执行的能力，由于目前这些线">
+<meta property="og:type" content="article">
+<meta property="og:title" content="oslab4">
+<meta property="og:url" content="http://example.com/2023/07/08/oslab4/index.html">
+<meta property="og:site_name" content="流风小屋">
+<meta property="og:description" content="Lab 4: RV64 虚拟内存管理1 实验目的 学习虚拟内存的相关知识，实现物理地址到虚拟地址的切换。 了解 RISC-V 架构中 SV39 分页模式，实现虚拟地址到物理地址的映射，并对不同的段进行相应的权限设置。  2 实验环境 Environment in previous labs  3 背景知识3.0 前言在 lab3 中我们赋予了 OS 对多个线程调度以及并发执行的能力，由于目前这些线">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-07-08T06:43:11.000Z">
+<meta property="article:modified_time" content="2023-07-29T05:52:30.886Z">
+<meta property="article:author" content="流风花水">
+<meta property="article:tag" content="os实验文档">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>oslab4 - 流风小屋</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.5","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="流风小屋" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 100vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>流风小屋</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/os.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.1)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="oslab4"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-author" aria-hidden="true"></i>
+        流风花水
+      </span>
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-07-08 14:43" pubdate>
+          2023年7月8日 14:43
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          10k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          84 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+        <div class="scroll-down-bar">
+          <i class="iconfont icon-arrowdown"></i>
+        </div>
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">oslab4</h1>
+            
+              <p class="note note-info">
+                
+                  
+                    本文最后更新于：2023年7月29日 13:52
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Lab-4-RV64-虚拟内存管理"><a href="#Lab-4-RV64-虚拟内存管理" class="headerlink" title="Lab 4: RV64 虚拟内存管理"></a>Lab 4: RV64 虚拟内存管理</h1><h2 id="1-实验目的"><a href="#1-实验目的" class="headerlink" title="1 实验目的"></a>1 实验目的</h2><ul>
+<li>学习虚拟内存的相关知识，实现物理地址到虚拟地址的切换。</li>
+<li>了解 RISC-V 架构中 SV39 分页模式，实现虚拟地址到物理地址的映射，并对不同的段进行相应的权限设置。</li>
+</ul>
+<h2 id="2-实验环境"><a href="#2-实验环境" class="headerlink" title="2 实验环境"></a>2 实验环境</h2><ul>
+<li>Environment in previous labs</li>
+</ul>
+<h2 id="3-背景知识"><a href="#3-背景知识" class="headerlink" title="3 背景知识"></a>3 背景知识</h2><h3 id="3-0-前言"><a href="#3-0-前言" class="headerlink" title="3.0 前言"></a>3.0 前言</h3><p>在 lab3 中我们赋予了 OS 对多个线程调度以及并发执行的能力，由于目前这些线程都是内核线程，因此他们可以共享运行空间，即运行不同线程对空间的修改是相互可见的。但是如果我们需要线程相互<strong>隔离</strong>，以及在多线程的情况下更加<strong>高效</strong>的使用内存，就必须引入<code>虚拟内存</code>这个概念。</p>
+<p>虚拟内存可以为正在运行的进程提供独立的内存空间，制造一种每个进程的内存都是独立的假象。同时虚拟内存到物理内存的映射也包含了对内存的访问权限，方便 Kernel 完成权限检查。</p>
+<p>在本次实验中，我们需要关注 OS 如何<strong>开启虚拟地址</strong>以及通过设置页表来实现<strong>地址映射</strong>和<strong>权限控制</strong>。</p>
+<h3 id="3-1-Kernel-的虚拟内存布局"><a href="#3-1-Kernel-的虚拟内存布局" class="headerlink" title="3.1 Kernel 的虚拟内存布局"></a>3.1 Kernel 的虚拟内存布局</h3><figure class="highlight crmsh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs crmsh">start_address           end_address<br>    <span class="hljs-number">0</span>x0                 <span class="hljs-number">0</span>x3fffffffff<br>     │                       │<br>┌────┘                 ┌─────┘<br>↓        <span class="hljs-number">256</span>G          ↓                                <br>┌───────────────────────┬──────────┬────────────────┐<br>│      <span class="hljs-keyword">User</span> <span class="hljs-title">Space</span>       │    ...   │  Kernel Space  │<br>└───────────────────────┴──────────┴────────────────┘<br>                                    ↑    <span class="hljs-number">256</span>G      ↑<br>                      ┌─────────────┘              │ <br>                      │                            │<br>              <span class="hljs-number">0</span>xffffffc000000000          <span class="hljs-number">0</span>xffffffffffffffff<br>                start_address                 end_address<br></code></pre></td></tr></table></figure>
+
+<p>通过上图我们可以看到 RV64 将 <code>0x0000004000000000</code> 以下的虚拟空间作为 <code>user space</code>。将 <code>0xffffffc000000000</code> 及以上的虚拟空间作为 <code>kernel space</code>。由于我们还未引入用户态程序，目前我们只需要关注 <code>kernel space</code>。</p>
+<p>具体的虚拟内存布局可以<a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/v5.15/source/Documentation/riscv/vm-layout.rst">参考这里</a>。</p>
+<blockquote>
+<p>在 <code>RISC-V Linux Kernel Space</code> 中有一段区域被称为 <code>direct mapping area</code>，为了方便 kernel 可以高效率的访问 RAM，kernel 会预先把所有物理内存都映射至这一块区域 ( PA + OFFSET &#x3D;&#x3D; VA )， 这种映射也被称为 <code>linear mapping</code>。在 RISC-V Linux Kernel 中这一段区域为 <code>0xffffffe000000000 ~ 0xffffffff00000000</code>, 共 124 GB 。</p>
+</blockquote>
+<h3 id="3-2-RISC-V-Virtual-Memory-System-Sv39"><a href="#3-2-RISC-V-Virtual-Memory-System-Sv39" class="headerlink" title="3.2 RISC-V Virtual-Memory System (Sv39)"></a>3.2 RISC-V Virtual-Memory System (Sv39)</h3><h4 id="3-2-1-satp-Register（Supervisor-Address-Translation-and-Protection-Register）"><a href="#3-2-1-satp-Register（Supervisor-Address-Translation-and-Protection-Register）" class="headerlink" title="3.2.1 satp Register（Supervisor Address Translation and Protection Register）"></a>3.2.1 <code>satp</code> Register（Supervisor Address Translation and Protection Register）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"> <span class="hljs-number">63</span>      <span class="hljs-number">60</span> <span class="hljs-number">59</span>                  <span class="hljs-number">44</span> <span class="hljs-number">43</span>                                <span class="hljs-number">0</span><br> ---------------------------------------------------------------------<br>|   MODE   |         ASID         |                PPN                |<br> ---------------------------------------------------------------------<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>MODE 字段的取值如下图：</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs c">                         RV <span class="hljs-number">64</span><br> ----------------------------------------------------------<br>|  Value  |  Name  |  Description                          |<br>|----------------------------------------------------------|<br>|    <span class="hljs-number">0</span>    | Bare   | No translation or protection          |<br>|  <span class="hljs-number">1</span> - <span class="hljs-number">7</span>  | ---    | Reserved <span class="hljs-keyword">for</span> standard use             |<br>|    <span class="hljs-number">8</span>    | Sv39   | Page-based <span class="hljs-number">39</span> bit virtual addressing  | &lt;-- 我们使用的mode<br>|    <span class="hljs-number">9</span>    | Sv48   | Page-based <span class="hljs-number">48</span> bit virtual addressing  |<br>|    <span class="hljs-number">10</span>   | Sv57   | Page-based <span class="hljs-number">57</span> bit virtual addressing  |<br>|    <span class="hljs-number">11</span>   | Sv64   | Page-based <span class="hljs-number">64</span> bit virtual addressing  |<br>| <span class="hljs-number">12</span> - <span class="hljs-number">13</span> | ---    | Reserved <span class="hljs-keyword">for</span> standard use             |<br>| <span class="hljs-number">14</span> - <span class="hljs-number">15</span> | ---    | Reserved <span class="hljs-keyword">for</span> standard use             |<br> -----------------------------------------------------------<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>ASID ( Address Space Identifier ) ： 此次实验中直接置 0 即可。</li>
+<li>PPN ( Physical Page Number ) ：顶级页表的物理页号。我们的物理页的大小为 4KB， PA &gt;&gt; 12 &#x3D;&#x3D; PPN。</li>
+<li>具体介绍请阅读 <a target="_blank" rel="noopener" href="https://www.five-embeddev.com/riscv-isa-manual/latest/supervisor.html#sec:satp">RISC-V Privileged Spec 4.1.10</a> 。</li>
+</ul>
+<h4 id="3-2-2-RISC-V-Sv39-Virtual-Address-and-Physical-Address"><a href="#3-2-2-RISC-V-Sv39-Virtual-Address-and-Physical-Address" class="headerlink" title="3.2.2 RISC-V Sv39 Virtual Address and Physical Address"></a>3.2.2 RISC-V Sv39 Virtual Address and Physical Address</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"> <span class="hljs-number">38</span>        <span class="hljs-number">30</span> <span class="hljs-number">29</span>        <span class="hljs-number">21</span> <span class="hljs-number">20</span>        <span class="hljs-number">12</span> <span class="hljs-number">11</span>                           <span class="hljs-number">0</span><br> ---------------------------------------------------------------------<br>|   VPN[<span class="hljs-number">2</span>]   |   VPN[<span class="hljs-number">1</span>]   |   VPN[<span class="hljs-number">0</span>]   |          page offset         |<br> ---------------------------------------------------------------------<br>                        Sv39 virtual address<br><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"> <span class="hljs-number">55</span>                <span class="hljs-number">30</span> <span class="hljs-number">29</span>        <span class="hljs-number">21</span> <span class="hljs-number">20</span>        <span class="hljs-number">12</span> <span class="hljs-number">11</span>                           <span class="hljs-number">0</span><br> -----------------------------------------------------------------------------<br>|       PPN[<span class="hljs-number">2</span>]       |   PPN[<span class="hljs-number">1</span>]   |   PPN[<span class="hljs-number">0</span>]   |          page offset         |<br> -----------------------------------------------------------------------------<br>                            Sv39 physical address<br><br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>Sv39 模式定义物理地址有 56 位，虚拟地址有 64 位。但是，虚拟地址的 64 位只有低 39 位有效。通过虚拟内存布局图我们可以发现，其 63-39 位为 0 时代表 user space address， 为 1 时 代表 kernel space address。</li>
+<li>Sv39 支持三级页表结构，VPN[2-0](Virtual Page Number)分别代表每级页表的<code>虚拟页号</code>，PPN[2-0](Physical Page Number)分别代表每级页表的<code>物理页号</code>。物理地址和虚拟地址的低12位表示页内偏移（page offset）。</li>
+<li>具体介绍请阅读 <a target="_blank" rel="noopener" href="https://www.five-embeddev.com/riscv-isa-manual/latest/supervisor.html#sec:sv39">RISC-V Privileged Spec 4.4.1</a> 。</li>
+</ul>
+<h4 id="3-2-3-RISC-V-Sv39-Page-Table-Entry"><a href="#3-2-3-RISC-V-Sv39-Page-Table-Entry" class="headerlink" title="3.2.3 RISC-V Sv39 Page Table Entry"></a>3.2.3 RISC-V Sv39 Page Table Entry</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs c"> <span class="hljs-number">63</span>      <span class="hljs-number">54</span> <span class="hljs-number">53</span>        <span class="hljs-number">28</span> <span class="hljs-number">27</span>        <span class="hljs-number">19</span> <span class="hljs-number">18</span>        <span class="hljs-number">10</span> <span class="hljs-number">9</span>   <span class="hljs-number">8</span> <span class="hljs-number">7</span> <span class="hljs-number">6</span> <span class="hljs-number">5</span> <span class="hljs-number">4</span> <span class="hljs-number">3</span> <span class="hljs-number">2</span> <span class="hljs-number">1</span> <span class="hljs-number">0</span><br> -----------------------------------------------------------------------<br>| Reserved |   PPN[<span class="hljs-number">2</span>]   |   PPN[<span class="hljs-number">1</span>]   |   PPN[<span class="hljs-number">0</span>]   | RSW |D|A|G|U|X|W|R|V|<br> -----------------------------------------------------------------------<br>                                                     |   | | | | | | | |<br>                                                     |   | | | | | | | `---- V - Valid<br>                                                     |   | | | | | | `------ R - Readable<br>                                                     |   | | | | | `-------- W - Writable<br>                                                     |   | | | | `---------- X - Executable<br>                                                     |   | | | `------------ U - User<br>                                                     |   | | `-------------- G - Global<br>                                                     |   | `---------------- A - Accessed<br>                                                     |   `------------------ D - Dirty (<span class="hljs-number">0</span> in page directory)<br>                                                     `---------------------- Reserved <span class="hljs-keyword">for</span> supervisor software<br></code></pre></td></tr></table></figure>
+
+<ul>
+<li>0 ～ 9 bit: protection bits<ul>
+<li>V : 有效位，当 V &#x3D; 0, 访问该 PTE 会产生 Pagefault。</li>
+<li>R : R &#x3D; 1 该页可读。</li>
+<li>W : W &#x3D; 1 该页可写。</li>
+<li>X : X &#x3D; 1 该页可执行。</li>
+<li>U , G , A , D , RSW 本次实验中设置为 0 即可。</li>
+</ul>
+</li>
+<li>具体介绍请阅读 <a target="_blank" rel="noopener" href="https://www.five-embeddev.com/riscv-isa-manual/latest/supervisor.html#sec:sv39">RISC-V Privileged Spec 4.4.1</a></li>
+</ul>
+<h4 id="3-2-4-RISC-V-Address-Translation"><a href="#3-2-4-RISC-V-Address-Translation" class="headerlink" title="3.2.4 RISC-V Address Translation"></a>3.2.4 RISC-V Address Translation</h4><p>虚拟地址转化为物理地址流程图如下，具体描述见 <a target="_blank" rel="noopener" href="https://www.five-embeddev.com/riscv-isa-manual/latest/supervisor.html#sv32algorithm">RISC-V Privileged Spec 4.3.2</a> :</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><code class="hljs text">                                Virtual Address                                     Physical Address<br><br>                          9             9            9              12          55        12 11       0<br>   ┌────────────────┬────────────┬────────────┬─────────────┬────────────────┐ ┌────────────┬──────────┐<br>   │                │   VPN[2]   │   VPN[1]   │   VPN[0]    │     OFFSET     │ │     PPN    │  OFFSET  │<br>   └────────────────┴────┬───────┴─────┬──────┴──────┬──────┴───────┬────────┘ └────────────┴──────────┘<br>                         │             │             │              │                 ▲          ▲<br>                         │             │             │              │                 │          │<br>                         │             │             │              │                 │          │<br>┌────────────────────────┘             │             │              │                 │          │<br>│                                      │             │              │                 │          │<br>│                                      │             │              └─────────────────┼──────────┘<br>│    ┌─────────────────┐               │             │                                │<br>│511 │                 │  ┌────────────┘             │                                │<br>│    │                 │  │                          │                                │<br>│    │                 │  │     ┌─────────────────┐  │                                │<br>│    │                 │  │ 511 │                 │  │                                │<br>│    │                 │  │     │                 │  │                                │<br>│    │                 │  │     │                 │  │     ┌─────────────────┐        │<br>│    │   44       10   │  │     │                 │  │ 511 │                 │        │<br>│    ├────────┬────────┤  │     │                 │  │     │                 │        │<br>└───►│   PPN  │  flags │  │     │                 │  │     │                 │        │<br>     ├────┬───┴────────┤  │     │   44       10   │  │     │                 │        │<br>     │    │            │  │     ├────────┬────────┤  │     │                 │        │<br>     │    │            │  └────►│   PPN  │  flags │  │     │                 │        │<br>     │    │            │        ├────┬───┴────────┤  │     │   44       10   │        │<br>     │    │            │        │    │            │  │     ├────────┬────────┤        │<br>   1 │    │            │        │    │            │  └────►│   PPN  │  flags │        │<br>     │    │            │        │    │            │        ├────┬───┴────────┤        │<br>   0 │    │            │        │    │            │        │    │            │        │<br>     └────┼────────────┘      1 │    │            │        │    │            │        │<br>     ▲    │                     │    │            │        │    └────────────┼────────┘<br>     │    │                   0 │    │            │        │                 │<br>     │    └────────────────────►└────┼────────────┘      1 │                 │<br>     │                               │                     │                 │<br> ┌───┴────┐                          │                   0 │                 │<br> │  satp  │                          └────────────────────►└─────────────────┘<br> └────────┘<br></code></pre></td></tr></table></figure>
+
+<h2 id="4-实验步骤"><a href="#4-实验步骤" class="headerlink" title="4 实验步骤"></a>4 实验步骤</h2><h3 id="4-1-准备工程"><a href="#4-1-准备工程" class="headerlink" title="4.1 准备工程"></a>4.1 准备工程</h3><ul>
+<li><p>此次实验基于 lab3 同学所实现的代码进行。</p>
+</li>
+<li><p>需要修改 <code>defs.h</code>, 在 <code>defs.h</code> <strong>添加</strong>如下内容：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> OPENSBI_SIZE (0x200000)</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> VM_START (0xffffffe000000000)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> VM_END   (0xffffffff00000000)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> VM_SIZE  (VM_END - VM_START)</span><br><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> PA2VA_OFFSET (VM_START - PHY_START)</span><br></code></pre></td></tr></table></figure>
+</li>
+<li><p>从 <code>repo</code> 同步以下代码: <code>vmlinux.lds.S</code>, <code>Makefile</code>。并按照以下步骤将这些文件正确放置。</p>
+<figure class="highlight asciidoc"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs asciidoc"><span class="hljs-bullet">.</span><br><span class="hljs-bullet"></span>└── arch<br><span class="hljs-code">    └── riscv</span><br><span class="hljs-code">        └── kernel</span><br><span class="hljs-code">            ├── Makefile</span><br><span class="hljs-code">            └── vmlinux.lds.S</span><br></code></pre></td></tr></table></figure>
+
+<p>这里我们通过 <code>vmlinux.lds.S</code> 模版生成 <code>vmlinux.lds</code>文件。链接脚本中的 <code>ramv</code> 代表 <code>VMA ( Virtual Memory Address )</code> 即虚拟地址，<code>ram</code> 则代表 <code>LMA ( Load Memory Address )</code>, 即我们 OS image 被 load 的地址，可以理解为物理地址。使用以上的 vmlinux.lds 进行编译之后，得到的 <code>System.map</code> 以及 <code>vmlinux</code> 采用的都是虚拟地址，方便之后 Debug。</p>
+</li>
+</ul>
+<h3 id="4-2-开启虚拟内存映射。"><a href="#4-2-开启虚拟内存映射。" class="headerlink" title="4.2 开启虚拟内存映射。"></a>4.2 开启虚拟内存映射。</h3><p>在 RISC-V 中开启虚拟地址被分为了两步：<code>setup_vm</code> 以及 <code>setup_vm_final</code>，下面将介绍相关的具体实现。</p>
+<h4 id="4-2-1-setup-vm-的实现"><a href="#4-2-1-setup-vm-的实现" class="headerlink" title="4.2.1 setup_vm 的实现"></a>4.2.1 <code>setup_vm</code> 的实现</h4><ul>
+<li><p>将 0x80000000 开始的 1GB 区域进行两次映射，其中一次是等值映射 ( PA &#x3D;&#x3D; VA ) ，另一次是将其映射至高地址 ( PA + PV2VA_OFFSET &#x3D;&#x3D; VA )。如下图所示：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs text">Physical Address<br>-------------------------------------------<br>                     | OpenSBI | Kernel |<br>-------------------------------------------<br>                     ^<br>                0x80000000<br>                     ├───────────────────────────────────────────────────┐<br>                     |                                                   |<br>Virtual Address      ↓                                                   ↓<br>-----------------------------------------------------------------------------------------------<br>                     | OpenSBI | Kernel |                                | OpenSBI | Kernel |<br>-----------------------------------------------------------------------------------------------<br>                     ^                                                   ^<br>                0x80000000                                       0xffffffe000000000<br></code></pre></td></tr></table></figure>
+</li>
+<li><p>完成上述映射之后，通过 <code>relocate</code> 函数，完成对 <code>satp</code> 的设置，以及跳转到对应的虚拟地址。</p>
+</li>
+<li><p>至此我们已经完成了虚拟地址的开启，之后我们运行的代码也都将在虚拟地址上运行。</p>
+</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// arch/riscv/kernel/vm.c</span><br><br><span class="hljs-comment">/* early_pgtbl: 用于 setup_vm 进行 1GB 的 映射。 */</span><br><span class="hljs-type">unsigned</span> <span class="hljs-type">long</span>  early_pgtbl[<span class="hljs-number">512</span>] __attribute__((__aligned__(<span class="hljs-number">0x1000</span>)));<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">setup_vm</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span> &#123;<br>    <span class="hljs-comment">/* </span><br><span class="hljs-comment">    1. 由于是进行 1GB 的映射 这里不需要使用多级页表 </span><br><span class="hljs-comment">    2. 将 va 的 64bit 作为如下划分： | high bit | 9 bit | 30 bit |</span><br><span class="hljs-comment">        high bit 可以忽略</span><br><span class="hljs-comment">        中间9 bit 作为 early_pgtbl 的 index</span><br><span class="hljs-comment">        低 30 bit 作为 页内偏移 这里注意到 30 = 9 + 9 + 12， 即我们只使用根页表， 根页表的每个 entry 都对应 1GB 的区域。 </span><br><span class="hljs-comment">    3. Page Table Entry 的权限 V | R | W | X 位设置为 1</span><br><span class="hljs-comment">    */</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><code class="hljs asm"># head.S<br><br>_start:<br><br>    call setup_vm<br>    call relocate<br><br>    ...<br><br>    j start_kernel<br><br>relocate:<br>    # set ra = ra + PA2VA_OFFSET<br>    # set sp = sp + PA2VA_OFFSET (If you have set the sp before)<br>   <br>    ###################### <br>    #   YOUR CODE HERE   #<br>    ######################<br><br>    # set satp with early_pgtbl<br>    <br>    ###################### <br>    #   YOUR CODE HERE   #<br>    ######################<br>    <br>    # flush tlb<br>    sfence.vma zero, zero<br>		<br>    # flush icache<br>    fence.i<br>		<br>    ret<br><br>    .section .bss.stack<br>    .globl boot_stack<br>boot_stack:<br>    ...<br></code></pre></td></tr></table></figure>
+
+
+
+
+<blockquote>
+<p>Hint 1: <code>sfence.vma</code> 指令用于刷新 TLB</p>
+<p>Hint 2: <code>fence.i</code> 指令用于刷新 icache</p>
+<p>Hint 3: 在 set satp 前，我们只可以使用<strong>物理地址</strong>来打断点。设置 satp 之后，才可以使用虚拟地址打断点，同时之前设置的物理地址断点也会失效，需要删除</p>
+</blockquote>
+<h4 id="4-2-2-setup-vm-final-的实现"><a href="#4-2-2-setup-vm-final-的实现" class="headerlink" title="4.2.2 setup_vm_final 的实现"></a>4.2.2 <code>setup_vm_final</code> 的实现</h4><ul>
+<li><p>由于 setup_vm_final 中需要申请页面的接口， 应该在其之前完成内存管理初始化， 可能需要修改 mm.c 中的代码，mm.c 中初始化的函数接收的起始结束地址需要调整为虚拟地址。</p>
+</li>
+<li><p>对 所有物理内存 (128M) 进行映射，并设置正确的权限。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs text">Physical Address<br>     PHY_START                           PHY_END<br>         ↓                                  ↓<br>--------------------------------------------------------<br>         | OpenSBI | Kernel |               |<br>--------------------------------------------------------<br>         ^                                  ^<br>    0x80000000                              └───────────────────────────────────────────────────┐<br>         └───────────────────────────────────────────────────┐                                  |<br>                                                             |                                  |<br>                                                          VM_START                              |<br>Virtual Address                                              ↓                                  ↓<br>----------------------------------------------------------------------------------------------------<br>                                                             | OpenSBI | Kernel |               |<br>-----------------------------------------------------------------------------------------------------<br>                                                             ^<br>                                                     0xffffffe000000000<br></code></pre></td></tr></table></figure>
+
+</li>
+<li><p>不再需要进行等值映射</p>
+</li>
+<li><p>不再需要将 OpenSBI 的映射至高地址，因为 OpenSBI 运行在 M 态， 直接使用的物理地址。</p>
+</li>
+<li><p>采用三级页表映射。</p>
+</li>
+<li><p>在 head.S 中 适当的位置调用 setup_vm_final 。</p>
+</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// arch/riscv/kernel/vm.c </span><br><br><span class="hljs-comment">/* swapper_pg_dir: kernel pagetable 根目录， 在 setup_vm_final 进行映射。 */</span><br><span class="hljs-type">unsigned</span> <span class="hljs-type">long</span>  swapper_pg_dir[<span class="hljs-number">512</span>] __attribute__((__aligned__(<span class="hljs-number">0x1000</span>)));<br><br><span class="hljs-type">void</span> <span class="hljs-title function_">setup_vm_final</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span> &#123;<br>    <span class="hljs-built_in">memset</span>(swapper_pg_dir, <span class="hljs-number">0x0</span>, PGSIZE);<br><br>    <span class="hljs-comment">// No OpenSBI mapping required</span><br><br>    <span class="hljs-comment">// mapping kernel text X|-|R|V</span><br>    create_mapping(...);<br><br>    <span class="hljs-comment">// mapping kernel rodata -|-|R|V</span><br>    create_mapping(...);<br>    <br>    <span class="hljs-comment">// mapping other memory -|W|R|V</span><br>    create_mapping(...);<br>    <br>    <span class="hljs-comment">// set satp with swapper_pg_dir</span><br><br>    YOUR CODE HERE<br><br>    <span class="hljs-comment">// flush TLB</span><br>    <span class="hljs-keyword">asm</span> <span class="hljs-title function_">volatile</span><span class="hljs-params">(<span class="hljs-string">&quot;sfence.vma zero, zero&quot;</span>)</span>;<br>  <br>    <span class="hljs-comment">// flush icache</span><br>    <span class="hljs-keyword">asm</span> <span class="hljs-title function_">volatile</span><span class="hljs-params">(<span class="hljs-string">&quot;fence.i&quot;</span>)</span><br>    <span class="hljs-keyword">return</span>;<br>&#125;<br><br><br><span class="hljs-comment">/* 创建多级页表映射关系 */</span><br>create_mapping(uint64 *pgtbl, uint64 va, uint64 pa, uint64 sz, <span class="hljs-type">int</span> perm) &#123;<br>    <span class="hljs-comment">/*</span><br><span class="hljs-comment">    pgtbl 为根页表的基地址</span><br><span class="hljs-comment">    va, pa 为需要映射的虚拟地址、物理地址</span><br><span class="hljs-comment">    sz 为映射的大小</span><br><span class="hljs-comment">    perm 为映射的读写权限</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">    创建多级页表的时候可以使用 kalloc() 来获取一页作为页表目录</span><br><span class="hljs-comment">    可以使用 V bit 来判断页表项是否存在</span><br><span class="hljs-comment">    */</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="4-3-编译及测试"><a href="#4-3-编译及测试" class="headerlink" title="4.3 编译及测试"></a>4.3 编译及测试</h3><ul>
+<li><p>由于加入了一些新的 .c 文件，可能需要修改一些Makefile文件，请同学自己尝试修改，使项目可以编译并运行。</p>
+</li>
+<li><p>输出示例</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><code class="hljs bash">OpenSBI v0.9<br>  ____                    _____ ____ _____<br> / __ \                  / ____|  _ \_   _|<br>| |  | |_ __   ___ _ __ | (___ | |_) || |<br>| |  | | <span class="hljs-string">&#x27;_ \ / _ \ &#x27;</span>_ \ \___ \|  _ &lt; | |<br>| |__| | |_) |  __/ | | |____) | |_) || |_<br> \____/| .__/ \___|_| |_|_____/|____/_____|<br>       | |<br>       |_|<br><br>...<br><br>Boot HART MIDELEG         : 0x0000000000000222<br>Boot HART MEDELEG         : 0x000000000000b109<br><br>...mm_init <span class="hljs-keyword">done</span>!<br>...proc_init <span class="hljs-keyword">done</span>!<br>Hello RISC-V<br>idle process is running!<br><br>switch to [PID = 28 COUNTER = 1] <br>[PID = 28] is running! thread space begin at 0xffffffe007fa2000<br><br>switch to [PID = 12 COUNTER = 1] <br>[PID = 12] is running! thread space begin at 0xffffffe007fb2000<br><br>switch to [PID = 14 COUNTER = 2] <br>[PID = 14] is running! thread space begin at 0xffffffe007fb0000<br>[PID = 14] is running! thread space begin at 0xffffffe007fb0000<br><br>switch to [PID = 9 COUNTER = 2] <br>[PID = 9] is running! thread space begin at 0xffffffe007fb5000<br>[PID = 9] is running! thread space begin at 0xffffffe007fb5000<br><br>switch to [PID = 2 COUNTER = 2] <br>[PID = 2] is running! thread space begin at 0xffffffe007fbc000<br>[PID = 2] is running! thread space begin at 0xffffffe007fbc000<br><br>switch to [PID = 1 COUNTER = 2] <br>[PID = 1] is running! thread space begin at 0xffffffe007fbd000<br>[PID = 1] is running! thread space begin at 0xffffffe007fbd000<br><br>switch to [PID = 29 COUNTER = 3] <br>[PID = 29] is running! thread space begin at 0xffffffe007fa1000<br>[PID = 29] is running! thread space begin at 0xffffffe007fa1000<br>[PID = 29] is running! thread space begin at 0xffffffe007fa1000<br><br>switch to [PID = 11 COUNTER = 3] <br>[PID = 11] is running! thread space begin at 0xffffffe007fb3000<br>...<br><br></code></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="思考题"><a href="#思考题" class="headerlink" title="思考题"></a>思考题</h2><ol>
+<li>验证 <code>.text</code>, <code>.rodata</code> 段的属性是否成功设置，给出截图。</li>
+<li>为什么我们在 <code>setup_vm</code> 中需要做等值映射?</li>
+<li>在 Linux 中，是不需要做等值映射的。请探索一下不在 <code>setup_vm</code> 中做等值映射的方法。</li>
+</ol>
+<h2 id="作业提交"><a href="#作业提交" class="headerlink" title="作业提交"></a>作业提交</h2><p>同学需要提交实验报告以及整个工程代码，在提交前请使用 <code>make clean</code> 清除所有构建产物。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" class="category-chain-item">操作系统</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/os%E5%AE%9E%E9%AA%8C%E6%96%87%E6%A1%A3/" class="print-no-link">#os实验文档</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>oslab4</div>
+      <div>http://example.com/2023/07/08/oslab4/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>流风花水</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2023年7月8日</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>更新于</div>
+          <div>2023年7月29日</div>
+        </div>
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2023/07/08/oslab5/" title="oslab5">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">oslab5</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/07/08/oslab3/" title="oslab3">
+                        <span class="hidden-mobile">oslab3</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        if (!window.MathJax) {
+          window.MathJax = {
+            tex    : {
+              inlineMath: { '[+]': [['$', '$']] }
+            },
+            loader : {
+              load: ['ui/lazy']
+            },
+            options: {
+              renderActions: {
+                insertedScript: [200, () => {
+                  document.querySelectorAll('mjx-container').forEach(node => {
+                    let target = node.parentNode;
+                    if (target.nodeName.toLowerCase() === 'li') {
+                      target.parentNode.classList.add('has-jax');
+                    }
+                  });
+                }, '', false]
+              }
+            }
+          };
+        } else {
+          MathJax.startup.document.state(0);
+          MathJax.texReset();
+          MathJax.typeset();
+          MathJax.typesetPromise();
+        }
+
+        Fluid.events.registerRefreshCallback(function() {
+          if ('MathJax' in window && MathJax.startup.document && typeof MathJax.startup.document.state === 'function') {
+            MathJax.startup.document.state(0);
+            MathJax.texReset();
+            MathJax.typeset();
+            MathJax.typesetPromise();
+          }
+        });
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.2/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [ ["$","$"], ["\\(","\\)"] ],
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            processEscapes: true
+        }
+    });
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax();
+        for (var i = 0; i < all.length; ++i)
+            all[i].SourceElement().parentNode.className += ' has-jax';
+    });
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"model":{"jsonPath":"/live2dw/assets/koharu.model.json"},"display":{"position":"right","width":200,"height":400},"mobile":{"show":false},"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body>
+</html>
+
+<script type="text/javascript" src="/js/diy/clicklove.js"></script>
+<link rel="stylesheet" href="/dist/APlayer.min.css">
+<div id="aplayer"></div>
+<script type="text/javascript" src="/dist/APlayer.min.js"></script>
+<script type="text/javascript" src="/js/diy/musicplayer.js"></script>

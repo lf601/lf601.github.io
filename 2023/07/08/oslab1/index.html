@@ -1,0 +1,973 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/baizi.jpg">
+  <link rel="icon" href="/img/baizi.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="流风花水">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="Lab 1: RV64 内核引导1 实验目的 学习 RISC-V 汇编， 编写 head.S 实现跳转到内核运行的第一个 C 函数。 学习 OpenSBI，理解 OpenSBI 在实验中所起到的作用，并调用 OpenSBI 提供的接口完成字符的输出。 学习 Makefile 相关知识， 补充项目中的 Makefile 文件， 来完成对整个工程的管理。  2 实验环境 Environment in">
+<meta property="og:type" content="article">
+<meta property="og:title" content="oslab1">
+<meta property="og:url" content="http://example.com/2023/07/08/oslab1/index.html">
+<meta property="og:site_name" content="流风小屋">
+<meta property="og:description" content="Lab 1: RV64 内核引导1 实验目的 学习 RISC-V 汇编， 编写 head.S 实现跳转到内核运行的第一个 C 函数。 学习 OpenSBI，理解 OpenSBI 在实验中所起到的作用，并调用 OpenSBI 提供的接口完成字符的输出。 学习 Makefile 相关知识， 补充项目中的 Makefile 文件， 来完成对整个工程的管理。  2 实验环境 Environment in">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="c:/Users/LEGION/Desktop/zju/%E8%BD%AF%E5%B7%A5/%E4%B8%93%E4%B8%9A%E8%AF%BE/os/labsrc/os22fall-stu/docs/img/riscv-sbi.png">
+<meta property="article:published_time" content="2023-07-08T06:43:00.000Z">
+<meta property="article:modified_time" content="2023-07-29T05:52:30.885Z">
+<meta property="article:author" content="流风花水">
+<meta property="article:tag" content="os实验文档">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="c:/Users/LEGION/Desktop/zju/%E8%BD%AF%E5%B7%A5/%E4%B8%93%E4%B8%9A%E8%AF%BE/os/labsrc/os22fall-stu/docs/img/riscv-sbi.png">
+  
+  
+  
+  <title>oslab1 - 流风小屋</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.5","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="流风小屋" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 100vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>流风小屋</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/os.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.1)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="oslab1"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-author" aria-hidden="true"></i>
+        流风花水
+      </span>
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-07-08 14:43" pubdate>
+          2023年7月8日 14:43
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          8.3k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          70 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+        <div class="scroll-down-bar">
+          <i class="iconfont icon-arrowdown"></i>
+        </div>
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">oslab1</h1>
+            
+              <p class="note note-info">
+                
+                  
+                    本文最后更新于：2023年7月29日 13:52
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Lab-1-RV64-内核引导"><a href="#Lab-1-RV64-内核引导" class="headerlink" title="Lab 1: RV64 内核引导"></a>Lab 1: RV64 内核引导</h1><h2 id="1-实验目的"><a href="#1-实验目的" class="headerlink" title="1 实验目的"></a>1 实验目的</h2><ul>
+<li>学习 RISC-V 汇编， 编写 head.S 实现跳转到内核运行的第一个 C 函数。</li>
+<li>学习 OpenSBI，理解 OpenSBI 在实验中所起到的作用，并调用 OpenSBI 提供的接口完成字符的输出。</li>
+<li>学习 Makefile 相关知识， 补充项目中的 Makefile 文件， 来完成对整个工程的管理。</li>
+</ul>
+<h2 id="2-实验环境"><a href="#2-实验环境" class="headerlink" title="2 实验环境"></a>2 实验环境</h2><ul>
+<li>Environment in Lab0</li>
+</ul>
+<h2 id="3-实验基础知识介绍"><a href="#3-实验基础知识介绍" class="headerlink" title="3 实验基础知识介绍"></a>3 实验基础知识介绍</h2><h3 id="3-1-前置知识"><a href="#3-1-前置知识" class="headerlink" title="3.1 前置知识"></a>3.1 前置知识</h3><p>为了顺利完成 OS 实验，我们需要一些前置知识和较多调试技巧。在 OS 实验中我们需要 <strong>RISC-V汇编</strong> 的前置知识，课堂上不会讲授，请同学们通过阅读以下四份文档自学：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md">RISC-V Assembly Programmer’s Manual</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf">RISC-V Unprivileged Spec</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf">RISC-V Privileged Spec</a></li>
+<li><a target="_blank" rel="noopener" href="http://riscvbook.com/chinese/RISC-V-Reader-Chinese-v2p1.pdf">RISC-V 手册（中文）</a></li>
+</ul>
+<blockquote>
+<p>注：RISC-V 手册（中文）中有一些 Typo，请谨慎参考。</p>
+</blockquote>
+<h3 id="3-2-RISC-V-的三种特权模式"><a href="#3-2-RISC-V-的三种特权模式" class="headerlink" title="3.2 RISC-V 的三种特权模式"></a>3.2 RISC-V 的三种特权模式</h3><p>RISC-V 有三个特权模式：U (user) 模式、S (supervisor) 模式和 M (machine) 模式。</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Encoding</th>
+<th>Name</th>
+<th>Abbreviation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>00</td>
+<td>User&#x2F;Application</td>
+<td>U</td>
+</tr>
+<tr>
+<td>1</td>
+<td>01</td>
+<td>Supervisor</td>
+<td>S</td>
+</tr>
+<tr>
+<td>2</td>
+<td>10</td>
+<td>Reserved</td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>11</td>
+<td>Machine</td>
+<td>M</td>
+</tr>
+</tbody></table>
+<p>其中：</p>
+<ul>
+<li>M 模式是对硬件操作的抽象，有<strong>最高</strong>级别的权限</li>
+<li>S 模式介于 M 模式和 U 模式之间，在操作系统中对应于内核态 (Kernel)。当用户需要内核资源时，向内核申请，并切换到内核态进行处理</li>
+<li>U 模式用于执行用户程序，在操作系统中对应于用户态，有<strong>最低</strong>级别的权限</li>
+</ul>
+<h3 id="3-3-从计算机上电到-OS-运行"><a href="#3-3-从计算机上电到-OS-运行" class="headerlink" title="3.3 从计算机上电到 OS 运行"></a>3.3 从计算机上电到 OS 运行</h3><p>我们以最基础的嵌入式系统为例，计算机上电后，首先硬件进行一些基础的初始化后，将 CPU 的 Program Counter 移动到内存中 Bootloader 的起始地址。<br>Bootloader 是操作系统内核运行之前，用于初始化硬件，加载操作系统内核。<br>在 RISC-V 架构里，Bootloader 运行在 M 模式下。Bootloader 运行完毕后就会把当前模式切换到 S 模式下，机器随后开始运行 Kernel。</p>
+<p>这个过程简单而言就是这样：</p>
+<figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs jboss-cli">   Hardware             RISC-V M Mode           RISC-V S Mode <br>+<span class="hljs-params">------------</span>+         +<span class="hljs-params">--------------</span>+         +<span class="hljs-params">----------</span>+<br>|  Power On  |  <span class="hljs-params">----</span>&gt;  |  Bootloader  |  <span class="hljs-params">----</span>&gt;  |  Kernel  |<br>+<span class="hljs-params">------------</span>+         +<span class="hljs-params">--------------</span>+         +<span class="hljs-params">----------</span>+<br></code></pre></td></tr></table></figure>
+
+<h3 id="3-4-SBI-与-OpenSBI"><a href="#3-4-SBI-与-OpenSBI" class="headerlink" title="3.4 SBI 与 OpenSBI"></a>3.4 SBI 与 OpenSBI</h3><p>SBI (Supervisor Binary Interface) 是 S-mode 的 Kernel 和 M-mode 执行环境之间的接口规范，而 OpenSBI 是一个 RISC-V SBI 规范的开源实现。RISC-V 平台和 SoC 供应商可以自主扩展 OpenSBI 实现，以适应特定的硬件配置。</p>
+<p>简单的说，为了使操作系统内核适配不同硬件，OpenSBI 提出了一系列规范对 M-mode 下的硬件进行了统一定义，运行在 S-mode 下的内核可以按照这些规范对不同硬件进行操作。</p>
+<p><img src="C:/Users/LEGION/Desktop/zju/软工/专业课/os/labsrc/os22fall-stu/docs/img/riscv-sbi.png" srcset="/img/loading.gif" lazyload alt="RISC-V SBI 介绍"></p>
+<p>为降低实验难度，我们选择 OpenSBI 作为 Bootloader 来完成机器启动时 M-mode 下的硬件初始化与寄存器设置，并使用 OpenSBI 所提供的接口完成诸如字符打印的操作。</p>
+<p>在实验中，QEMU 已经内置了 OpenSBI 作为 Bootloader，我们可以使用 <code>-bios default</code> 启用。如果启用，QEMU 会将 OpenSBI 代码加载到 0x80000000 起始处。OpenSBI 初始化完成后，会跳转到 0x80200000 处（也就是 Kernel 的起始地址）。因此，我们所编译的代码需要放到 0x80200000 处。</p>
+<p>如果你对 RISC-V 架构的 Boot 流程有更多的好奇，可以参考这份 <a target="_blank" rel="noopener" href="https://riscv.org/wp-content/uploads/2019/12/Summit_bootflow.pdf">bootflow</a>。</p>
+<h3 id="3-5-Makefile"><a href="#3-5-Makefile" class="headerlink" title="3.5 Makefile"></a>3.5 Makefile</h3><p>Makefile 可以简单的认为是一个工程文件的编译规则，描述了整个工程的编译和链接流程。在 Lab0 中我们已经使用了 make 工具利用 Makefile 文件来管理整个工程。在阅读了 <a target="_blank" rel="noopener" href="https://seisman.github.io/how-to-write-makefile/introduction.html">Makefile介绍</a> 这一章节后，同学们可以根据工程文件夹里 Makefile 的代码来掌握一些基本的使用技巧。</p>
+<h3 id="3-6-内联汇编"><a href="#3-6-内联汇编" class="headerlink" title="3.6 内联汇编"></a>3.6 内联汇编</h3><p>内联汇编（通常由 asm 或者 __asm__ 关键字引入）提供了将汇编语言源代码嵌入 C 程序的能力。<br>内联汇编的详细介绍请参考 <a target="_blank" rel="noopener" href="https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html">Assembler Instructions with C Expression Operands</a> 。<br>下面简要介绍一下这次实验会用到的一些内联汇编知识：</p>
+<p>内联汇编基本格式为：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs c">__asm__ <span class="hljs-title function_">volatile</span> <span class="hljs-params">(</span><br><span class="hljs-params">    <span class="hljs-string">&quot;instruction1\n&quot;</span></span><br><span class="hljs-params">    <span class="hljs-string">&quot;instruction2\n&quot;</span></span><br><span class="hljs-params">    ......</span><br><span class="hljs-params">    ......</span><br><span class="hljs-params">    <span class="hljs-string">&quot;instruction3\n&quot;</span></span><br><span class="hljs-params">    : [out1] <span class="hljs-string">&quot;=r&quot;</span> (v1),[out2] <span class="hljs-string">&quot;=r&quot;</span> (v2)</span><br><span class="hljs-params">    : [in1] <span class="hljs-string">&quot;r&quot;</span> (v1), [in2] <span class="hljs-string">&quot;r&quot;</span> (v2)</span><br><span class="hljs-params">    : <span class="hljs-string">&quot;memory&quot;</span></span><br><span class="hljs-params">)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>其中，三个 <code>:</code> 将汇编部分分成了四部分：</p>
+<ul>
+<li>第一部分是汇编指令，指令末尾需要添加 ‘\n’。</li>
+<li>第二部分是输出操作数部分。</li>
+<li>第三部分是输入操作数部分。</li>
+<li>第四部分是可能影响的寄存器或存储器，用于告知编译器当前内联汇编语句可能会对某些寄存器或内存进行修改，使得编译器在优化时将其因素考虑进去。</li>
+</ul>
+<p>这四部分中后三部分不是必须的。</p>
+<h4 id="示例一"><a href="#示例一" class="headerlink" title="示例一"></a>示例一</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> <span class="hljs-type">long</span> <span class="hljs-title function_">s_example</span><span class="hljs-params">(<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> <span class="hljs-type">long</span> type,<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> <span class="hljs-type">long</span> arg0)</span> &#123;<br>    <span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> <span class="hljs-type">long</span> ret_val;<br>    __asm__ <span class="hljs-title function_">volatile</span> <span class="hljs-params">(</span><br><span class="hljs-params">        <span class="hljs-string">&quot;mv x10, %[type]\n&quot;</span></span><br><span class="hljs-params">        <span class="hljs-string">&quot;mv x11, %[arg0]\n&quot;</span></span><br><span class="hljs-params">        <span class="hljs-string">&quot;mv %[ret_val], x12&quot;</span></span><br><span class="hljs-params">        : [ret_val] <span class="hljs-string">&quot;=r&quot;</span> (ret_val)</span><br><span class="hljs-params">        : [type] <span class="hljs-string">&quot;r&quot;</span> (type), [arg0] <span class="hljs-string">&quot;r&quot;</span> (arg0)</span><br><span class="hljs-params">        : <span class="hljs-string">&quot;memory&quot;</span></span><br><span class="hljs-params">    )</span>;<br>    <span class="hljs-keyword">return</span> ret_val;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>示例一中指令部分，<code>%[type]</code>、<code>%[arg0]</code> 以及 <code>%[ret_val]</code> 代表着特定的寄存器或是内存。</p>
+<p>输入输出部分中，<code>[type] &quot;r&quot; (type)</code>代表着将 <code>()</code> 中的变量 <code>type</code> 放入寄存器中（<code>&quot;r&quot;</code> 指放入寄存器，如果是 <code>&quot;m&quot;</code> 则为放入内存），并且绑定到 <code>[]</code> 中命名的符号中去。<code>[ret_val] &quot;=r&quot; (ret_val)</code> 代表着将汇编指令中 <code>%[ret_val]</code> 的值更新到变量 <code>ret_val</code>中。</p>
+<h4 id="示例二"><a href="#示例二" class="headerlink" title="示例二"></a>示例二</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> write_csr(reg, val) (&#123;</span><br>    __asm__ <span class="hljs-title function_">volatile</span> <span class="hljs-params">(<span class="hljs-string">&quot;csrw &quot;</span> #reg <span class="hljs-string">&quot;, %0&quot;</span> :: <span class="hljs-string">&quot;r&quot;</span>(val))</span>; &#125;)<br></code></pre></td></tr></table></figure>
+
+<p>示例二定义了一个宏，其中 <code>%0</code> 代表着输出输入部分的第一个符号，即 <code>val</code>。</p>
+<p><code>#reg</code> 是c语言的一个特殊宏定义语法，相当于将reg进行宏替换并用双引号包裹起来。</p>
+<p>例如 <code>write_csr(sstatus,val)</code> 经宏展开会得到：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c">(&#123;<br>    __asm__ <span class="hljs-keyword">volatile</span> (<span class="hljs-string">&quot;csrw &quot;</span> <span class="hljs-string">&quot;sstatus&quot;</span> <span class="hljs-string">&quot;, %0&quot;</span> :: <span class="hljs-string">&quot;r&quot;</span>(val)); &#125;)<br></code></pre></td></tr></table></figure>
+
+<h3 id="3-7-编译相关知识介绍"><a href="#3-7-编译相关知识介绍" class="headerlink" title="3.7 编译相关知识介绍"></a>3.7 编译相关知识介绍</h3><h4 id="vmlinux-lds"><a href="#vmlinux-lds" class="headerlink" title="vmlinux.lds"></a>vmlinux.lds</h4><p>GNU ld 即链接器，用于将 <code>*.o</code> 文件（和库文件）链接成可执行文件。在操作系统开发中，为了指定程序的内存布局，ld 使用链接脚本（Linker Script）来控制，在 Linux Kernel 中链接脚本被命名为 vmlinux.lds。更多关于 ld 的介绍可以使用 <code>man ld</code> 命令。</p>
+<p>下面给出一个 vmlinux.lds 的例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><code class="hljs lds">/* 目标架构 */<br>OUTPUT_ARCH( &quot;riscv&quot; )<br><br>/* 程序入口 */<br>ENTRY( _start )<br><br>/* kernel代码起始位置 */<br>BASE_ADDR = 0x80200000;<br><br>SECTIONS<br>&#123;<br>    /* . 代表当前地址 */<br>    . = BASE_ADDR;<br><br>    /* 记录kernel代码的起始地址 */<br>    _skernel = .;<br><br>    /* ALIGN(0x1000) 表示4KB对齐 */<br>    /* _stext, _etext 分别记录了text段的起始与结束地址 */<br>    .text : ALIGN(0x1000)&#123;<br>        _stext = .;<br><br>        *(.text.entry)<br>        *(.text .text.*)<br>        <br>        _etext = .;<br>    &#125;<br><br>    .rodata : ALIGN(0x1000)&#123;<br>        _srodata = .;<br><br>        *(.rodata .rodata.*)<br>        <br>        _erodata = .;<br>    &#125;<br><br>    .data : ALIGN(0x1000)&#123;<br>        _sdata = .;<br><br>        *(.data .data.*)<br>        <br>        _edata = .;<br>    &#125;<br><br>    .bss : ALIGN(0x1000)&#123;<br>        _sbss = .;<br><br>        *(.bss.stack)<br>        sbss = .;<br>        *(.bss .bss.*)<br>        <br>        _ebss = .;<br>    &#125;<br><br>    /* 记录kernel代码的结束地址 */<br>    _ekernel = .;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>首先我们使用 OUTPUT_ARCH 指定了架构为 RISC-V ，之后使用 ENTRY 指定程序入口点为 <code>_start</code> 函数，程序入口点即程序启动时运行的函数，经过这样的指定后在head.S中需要编写 <code>_start</code> 函数，程序才能正常运行。</p>
+<p>链接脚本中有<code>.</code> <code>*</code>两个重要的符号。单独的<code>.</code>在链接脚本代表当前地址，它有赋值、被赋值、自增等操作。而<code>*</code>有两种用法，其一是<code>*()</code>在大括号中表示将所有文件中符合括号内要求的段放置在当前位置，其二是作为通配符。</p>
+<p>链接脚本的主体是SECTIONS部分，在这里链接脚本的工作是将程序的各个段按顺序放在各个地址上，在例子中就是从0x80200000地址开始放置了 <code>.text</code> ， <code>.rodata</code> ， <code>.data</code> 和 <code>.bss</code> 段。各个段的作用可以简要概括成：</p>
+<table>
+<thead>
+<tr>
+<th>段名</th>
+<th>主要作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>.text</td>
+<td>通常存放程序执行代码</td>
+</tr>
+<tr>
+<td>.rodata</td>
+<td>通常存放常量等只读数据</td>
+</tr>
+<tr>
+<td>.data</td>
+<td>通常存放已初始化的全局变量、静态变量</td>
+</tr>
+<tr>
+<td>.bss</td>
+<td>通常存放未初始化的全局变量、静态变量</td>
+</tr>
+</tbody></table>
+<p>在链接脚本中可以自定义符号，例如以上所有 <code>_s</code> 与  <code>_e</code>开头的符号都是我们自己定义的。</p>
+<p>更多有关链接脚本语法可以参考<a target="_blank" rel="noopener" href="https://sourceware.org/binutils/docs/ld/Scripts.html">这里</a>。</p>
+<h4 id="vmlinux"><a href="#vmlinux" class="headerlink" title="vmlinux"></a>vmlinux</h4><p>vmlinux 通常指 Linux Kernel 编译出的可执行文件 (Executable and Linkable Format &#x2F; ELF)，特点是未压缩的，带调试信息和符号表的。在整套 OS 实验中，vmlinux 通常指将你的代码进行编译，链接后生成的可供 QEMU 运行的 RV64 架构程序。如果对 vmlinux 使用 <code>file</code> 命令，你将看到如下信息：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ file vmlinux <br>vmlinux: ELF 64-bit LSB executable, UCB RISC-V, version 1 (SYSV), statically linked, not stripped<br></code></pre></td></tr></table></figure>
+
+<h4 id="System-map"><a href="#System-map" class="headerlink" title="System.map"></a>System.map</h4><p>System.map是内核符号表（Kernel Symbol Table）文件，是存储了所有内核符号及其地址的一个列表。“符号”通常指的是函数名，全局变量名等等。使用 <code>nm vmlinux</code> 命令即可打印vmlinux的符号表，符号表的样例如下：</p>
+<figure class="highlight dns"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs dns"><span class="hljs-number">0000000000000800</span> <span class="hljs-keyword">A</span> __vdso_rt_sigreturn<br>ffffffe<span class="hljs-number">000000000</span> T __init_begin<br>ffffffe<span class="hljs-number">000000000</span> T _sinittext<br>ffffffe<span class="hljs-number">000000000</span> T _start<br>ffffffe<span class="hljs-number">000000040</span> T _start_kernel<br>ffffffe<span class="hljs-number">000000076</span> t clear_bss<br>ffffffe<span class="hljs-number">000000080</span> t clear_bss_done<br>ffffffe<span class="hljs-number">0000000c0</span> t relocate<br>ffffffe00000017c t set_reset_devices<br>ffffffe<span class="hljs-number">000000190</span> t debug_kernel<br></code></pre></td></tr></table></figure>
+
+<p>使用 System.map 可以方便地读出函数或变量的地址，为 Debug 提供了方便。</p>
+<h2 id="4-实验步骤"><a href="#4-实验步骤" class="headerlink" title="4 实验步骤"></a>4 实验步骤</h2><h3 id="4-1-准备工程"><a href="#4-1-准备工程" class="headerlink" title="4.1 准备工程"></a>4.1 准备工程</h3><p>从 <a target="_blank" rel="noopener" href="https://github.com/ZJU-SEC/os22fall-stu">repo</a> 同步实验代码框架。</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs stylus">├── arch<br>│   └── riscv<br>│       ├── include<br>│       │   ├── defs<span class="hljs-selector-class">.h</span><br>│       │   └── sbi<span class="hljs-selector-class">.h</span><br>│       ├── kernel<br>│       │   ├── head<span class="hljs-selector-class">.S</span><br>│       │   ├── Makefile<br>│       │   ├── sbi<span class="hljs-selector-class">.c</span><br>│       │   └── vmlinux<span class="hljs-selector-class">.lds</span><br>│       └── Makefile<br>├── include<br>│   ├── print<span class="hljs-selector-class">.h</span><br>│   └── types<span class="hljs-selector-class">.h</span><br>├── init<br>│   ├── <span class="hljs-selector-tag">main</span><span class="hljs-selector-class">.c</span><br>│   ├── Makefile<br>│   └── test<span class="hljs-selector-class">.c</span><br>├── lib<br>│   ├── Makefile<br>│   └── print<span class="hljs-selector-class">.c</span><br>└── Makefile<br></code></pre></td></tr></table></figure>
+
+<p>需要完善以下文件：</p>
+<ul>
+<li>arch&#x2F;riscv&#x2F;kernel&#x2F;head.S</li>
+<li>lib&#x2F;Makefile</li>
+<li>arch&#x2F;riscv&#x2F;kernel&#x2F;sbi.c</li>
+<li>lib&#x2F;print.c</li>
+<li>arch&#x2F;riscv&#x2F;include&#x2F;defs.h</li>
+</ul>
+<h3 id="4-2-编写head-S"><a href="#4-2-编写head-S" class="headerlink" title="4.2 编写head.S"></a>4.2 编写head.S</h3><p>学习riscv的汇编。</p>
+<p>完成 arch&#x2F;riscv&#x2F;kernel&#x2F;head.S 。我们首先为即将运行的第一个 C 函数设置程序栈（栈的大小可以设置为4KB），并将该栈放置在<code>.bss.stack</code> 段。接下来我们只需要通过跳转指令，跳转至 main.c 中的 <code>start_kernel</code> 函数即可。</p>
+<h3 id="4-3-完善-Makefile-脚本"><a href="#4-3-完善-Makefile-脚本" class="headerlink" title="4.3 完善 Makefile 脚本"></a>4.3 完善 Makefile 脚本</h3><p>阅读文档中关于 <a href="#35-makefile">Makefile</a> 的章节，以及工程文件中的 Makefile 文件，根据注释学会 Makefile 的使用规则后，补充 <code>lib/Makefile</code>，使工程得以编译。  </p>
+<p>完成此步后在工程根文件夹执行 make，可以看到工程成功编译出 vmlinux。</p>
+<h3 id="4-4-补充-sbi-c"><a href="#4-4-补充-sbi-c" class="headerlink" title="4.4 补充 sbi.c"></a>4.4 补充 <code>sbi.c</code></h3><p>OpenSBI 在 M 态，为 S 态提供了多种接口，比如字符串输入输出。因此我们需要实现调用 OpenSBI 接口的功能。给出函数定义如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">sbiret</span> &#123;</span><br>	<span class="hljs-type">long</span> error;<br>	<span class="hljs-type">long</span> value;<br>&#125;;<br><br><span class="hljs-keyword">struct</span> sbiret <span class="hljs-title function_">sbi_ecall</span><span class="hljs-params">(<span class="hljs-type">int</span> ext, <span class="hljs-type">int</span> fid, </span><br><span class="hljs-params">                    uint64 arg0, uint64 arg1, uint64 arg2,</span><br><span class="hljs-params">                    uint64 arg3, uint64 arg4, uint64 arg5)</span>;<br></code></pre></td></tr></table></figure>
+
+<p>sbi_ecall 函数中，需要完成以下内容：</p>
+<ol>
+<li>将 ext (Extension ID) 放入寄存器 a7 中，fid (Function ID) 放入寄存器 a6 中，将 arg0 ~ arg5 放入寄存器 a0 ~ a5 中。</li>
+<li>使用 <code>ecall</code> 指令。<code>ecall</code> 之后系统会进入 M 模式，之后 OpenSBI 会完成相关操作。</li>
+<li>OpenSBI 的返回结果会存放在寄存器 a0 ， a1 中，其中 a0 为 error code， a1 为返回值， 我们用 sbiret 来接受这两个返回值。</li>
+</ol>
+<p>同学们可以参照内联汇编的示例一完成该函数的编写。<br>编写成功后，调用 <code>sbi_ecall(0x1, 0x0, 0x30, 0, 0, 0, 0, 0)</code> 将会输出字符’0’。其中<code>0x1</code>代表 <code>sbi_console_putchar</code> 的 ExtensionID，<code>0x0</code>代表FunctionID, 0x30代表’0’的ascii值，其余参数填0。</p>
+<p>请在 <code>arch/riscv/kernel/sbi.c</code> 中补充 <code>sbi_ecall()</code>。</p>
+<p>下面列出了一些在后续的实验中可能需要使用的功能。</p>
+<table>
+<thead>
+<tr>
+<th>Function Name</th>
+<th>Function ID</th>
+<th>Extension ID</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>sbi_set_timer （设置时钟相关寄存器）</td>
+<td>0</td>
+<td>0x00</td>
+</tr>
+<tr>
+<td>sbi_console_putchar （打印字符）</td>
+<td>0</td>
+<td>0x01</td>
+</tr>
+<tr>
+<td>sbi_console_getchar （接收字符）</td>
+<td>0</td>
+<td>0x02</td>
+</tr>
+</tbody></table>
+<p>|sbi_shutdown （关机）|0|0x08| 下面是实验指导中一些有用的信息：</p>
+<h3 id="4-5-puts-和-puti"><a href="#4-5-puts-和-puti" class="headerlink" title="4.5 puts() 和 puti()"></a>4.5 <code>puts()</code> 和 <code>puti()</code></h3><p>调用以上完成的 <code>sbi_ecall</code> , 完成 <code>puts()</code> 和 <code>puti()</code> 的实现。<br><code>puts()</code> 用于打印字符串，<code>puti()</code> 用于打印整型变量。</p>
+<p>请编写 <code>lib/print.c</code> 中的 <code>puts()</code> 和 <code>puti()</code>， 函数的相关定义已经写在了 <code>print.h</code> 文件。</p>
+<h3 id="4-6-修改-defs"><a href="#4-6-修改-defs" class="headerlink" title="4.6 修改 defs"></a>4.6 修改 defs</h3><p>内联汇编的相关知识见<a href="#36">内联汇编</a>。 </p>
+<p>学习了解了以上知识后，补充 <code>arch/riscv/include/defs.h</code> 中的代码完成：</p>
+<p>补充完 <code>read_csr</code> 这个宏定义。这里有相关<a href="#_2">示例</a>。</p>
+<h2 id="5-其他架构的交叉编译——以-Aarch64-为例"><a href="#5-其他架构的交叉编译——以-Aarch64-为例" class="headerlink" title="5 其他架构的交叉编译——以 Aarch64 为例"></a>5 其他架构的交叉编译——以 Aarch64 为例</h2><h3 id="5-1-交叉编译工具链的安装"><a href="#5-1-交叉编译工具链的安装" class="headerlink" title="5.1 交叉编译工具链的安装"></a>5.1 交叉编译工具链的安装</h3><p>那么如何安装不同架构的交叉编译工具链呢？最简单的方法是用 Ubuntu 自带的软件包管理器 <code>apt</code>，先找到有什么交叉编译工具可以装</p>
+<figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs mipsasm"><span class="hljs-comment"># 搜索包含 aarch64 的软件包，一般是交叉编译工具</span><br>apt-<span class="hljs-keyword">cache </span>search aarch64<br>...<br><span class="hljs-comment"># 搜索结果中如果有 gcc-xxx-linux-gnu，一般需求下装它就行了（具体情况具体分析哈）</span><br>sudo apt <span class="hljs-keyword">install </span>gcc-aarch64-linux-gnu<br></code></pre></td></tr></table></figure>
+
+<p>现在我们有 aarch64 的交叉编译工具链了，开始编译吧！</p>
+<h3 id="5-2-怎么获得编译过程的中间产物"><a href="#5-2-怎么获得编译过程的中间产物" class="headerlink" title="5.2 怎么获得编译过程的中间产物"></a>5.2 怎么获得编译过程的中间产物</h3><p><strong>注意：这里说的“编译过程”包括预处理、编译、汇编、链接</strong></p>
+<p>对于 Linux kernel，编译命令和选项在不同架构之间都大同小异，一般遵循以下形式（类比 lab0 做过的 riscv64 即可）</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs routeros">make <span class="hljs-attribute">ARCH</span>=xxx <span class="hljs-attribute">CROSS_COMPILE</span>=some-certain-arch- &lt;options&gt; &lt;files&gt;<br></code></pre></td></tr></table></figure>
+
+<p>比如，想获得 kernel 中 <code>xxx.c</code> 的预处理产物（回忆一下预处理做了什么）<code>xxx.i</code>，我们可以</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs routeros"><span class="hljs-comment"># 先 config</span><br>make <span class="hljs-attribute">ARCH</span>=arm64 <span class="hljs-attribute">CROSS_COMPILE</span>=aarch64-linux-gnu- defconfig<br><br><span class="hljs-comment"># 然后指定要生成的文件</span><br>make <span class="hljs-attribute">ARCH</span>=arm64 <span class="hljs-attribute">CROSS_COMPILE</span>=aarch64-linux-gnu- path/<span class="hljs-keyword">to</span>/file/xxx.i<br></code></pre></td></tr></table></figure>
+
+<p>课件里也给出了 <code>make</code> 工具。</p>
+<h2 id="思考题"><a href="#思考题" class="headerlink" title="思考题"></a>思考题</h2><ol>
+<li><p>请总结一下 RISC-V 的 calling convention，并解释 Caller &#x2F; Callee Saved Register 有什么区别？</p>
+</li>
+<li><p>编译之后，通过 System.map 查看 vmlinux.lds 中自定义符号的值（截图）。</p>
+</li>
+<li><p>用 <code>csr_read</code> 宏读取 <code>sstatus</code> 寄存器的值，对照 RISC-V 手册解释其含义（截图）。</p>
+</li>
+<li><p>用 <code>csr_write</code> 宏向 <code>sscratch</code> 寄存器写入数据，并验证是否写入成功（截图）。</p>
+</li>
+<li><p>Detail your steps about how to get <code>arch/arm64/kernel/sys.i</code></p>
+</li>
+<li><p>Find system call table of Linux v6.0 for <code>ARM32</code>, <code>RISC-V(32 bit)</code>, <code>RISC-V(64 bit)</code>, <code>x86(32 bit)</code>, <code>x86_64</code><br>List source code file, the whole system call table with macro expanded, screenshot every step.</p>
+</li>
+<li><p>Explain what is ELF file? Try readelf and objdump command on an ELF file, give screenshot of the output.<br>Run an ELF file and cat <code>/proc/PID /maps</code> to give its memory layout.</p>
+</li>
+</ol>
+<p>5, 6, 7 need to have screenshots.</p>
+<h2 id="作业提交"><a href="#作业提交" class="headerlink" title="作业提交"></a>作业提交</h2><p>实验报告需要包含对所有思考题的回答，有截图要求的要截图。</p>
+<p>同学需要提交实验报告以及整个工程代码。在提交前请使用 <code>make clean</code> 清除所有构建产物。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" class="category-chain-item">操作系统</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/os%E5%AE%9E%E9%AA%8C%E6%96%87%E6%A1%A3/" class="print-no-link">#os实验文档</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>oslab1</div>
+      <div>http://example.com/2023/07/08/oslab1/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>流风花水</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2023年7月8日</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>更新于</div>
+          <div>2023年7月29日</div>
+        </div>
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2023/07/08/oslab2/" title="oslab2">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">oslab2</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/07/08/oslab0/" title="oslab0">
+                        <span class="hidden-mobile">oslab0</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        if (!window.MathJax) {
+          window.MathJax = {
+            tex    : {
+              inlineMath: { '[+]': [['$', '$']] }
+            },
+            loader : {
+              load: ['ui/lazy']
+            },
+            options: {
+              renderActions: {
+                insertedScript: [200, () => {
+                  document.querySelectorAll('mjx-container').forEach(node => {
+                    let target = node.parentNode;
+                    if (target.nodeName.toLowerCase() === 'li') {
+                      target.parentNode.classList.add('has-jax');
+                    }
+                  });
+                }, '', false]
+              }
+            }
+          };
+        } else {
+          MathJax.startup.document.state(0);
+          MathJax.texReset();
+          MathJax.typeset();
+          MathJax.typesetPromise();
+        }
+
+        Fluid.events.registerRefreshCallback(function() {
+          if ('MathJax' in window && MathJax.startup.document && typeof MathJax.startup.document.state === 'function') {
+            MathJax.startup.document.state(0);
+            MathJax.texReset();
+            MathJax.typeset();
+            MathJax.typesetPromise();
+          }
+        });
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.2/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [ ["$","$"], ["\\(","\\)"] ],
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            processEscapes: true
+        }
+    });
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax();
+        for (var i = 0; i < all.length; ++i)
+            all[i].SourceElement().parentNode.className += ' has-jax';
+    });
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"model":{"jsonPath":"/live2dw/assets/koharu.model.json"},"display":{"position":"right","width":200,"height":400},"mobile":{"show":false},"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body>
+</html>
+
+<script type="text/javascript" src="/js/diy/clicklove.js"></script>
+<link rel="stylesheet" href="/dist/APlayer.min.css">
+<div id="aplayer"></div>
+<script type="text/javascript" src="/dist/APlayer.min.js"></script>
+<script type="text/javascript" src="/js/diy/musicplayer.js"></script>
